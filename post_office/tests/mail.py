@@ -8,7 +8,8 @@ from django.test import TestCase
 from django.test.utils import override_settings
 
 from ..settings import get_batch_size, get_log_level
-from ..models import Email, EmailTemplate, Attachment, PRIORITY, STATUS
+from ..models import Email, EmailTemplate, Attachment, BackendAccess, \
+    PRIORITY, STATUS
 from ..mail import (create, get_queued,
                     send, send_many, send_queued, _send_bulk)
 
@@ -80,6 +81,22 @@ class MailTest(TestCase):
         email = Email.objects.create(
             to=['to@example.com'], from_email='bob@example.com',
             subject='send bulk', message='Message', status=STATUS.queued)
+        _send_bulk([email])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, 'send bulk')
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_send_bulk_with_backend_access(self):
+        """
+        Ensure _send_bulk() properly sends out emails.
+        """
+        ba = BackendAccess.objects.create(name='n', host='localhost', port=22,
+            username='u', password='p', use_tsl=True)
+
+        email = Email.objects.create(
+            to=['to@example.com'], from_email='bob@example.com',
+            subject='send bulk', message='Message', status=STATUS.queued,
+            backend_access=ba)
         _send_bulk([email])
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].subject, 'send bulk')

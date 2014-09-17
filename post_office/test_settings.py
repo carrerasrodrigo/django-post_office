@@ -1,12 +1,19 @@
 # -*- coding: utf-8 -*-
 
+import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+#BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
+DEBUG = True
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': 'db.sqlite'
     },
 }
-
 
 CACHES = {
     'default': {
@@ -32,6 +39,7 @@ INSTALLED_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'post_office',
+    'south'
 )
 
 SECRET_KEY = 'a'

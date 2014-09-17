@@ -8,6 +8,7 @@ from django.core.mail import get_connection
 from django.db import connection as db_connection
 from django.db.models import Q
 from django.template import Context, Template
+from django.utils.module_loading import import_by_path
 
 from .models import Email, EmailTemplate, PRIORITY, STATUS
 from .settings import get_batch_size, get_email_backend, get_log_level
@@ -29,7 +30,7 @@ logger = setup_loghandlers("INFO")
 def create(sender, recipients=None, cc=None, bcc=None, subject='', message='',
            html_message='', context=None, scheduled_time=None, headers=None,
            template=None, priority=None, render_on_delivery=False,
-           commit=True):
+           commit=True, backend_access=None):
     """
     Creates an email from supplied keyword arguments. If template is
     specified, email subject and content will be rendered during delivery.
@@ -56,7 +57,7 @@ def create(sender, recipients=None, cc=None, bcc=None, subject='', message='',
             bcc=bcc,
             scheduled_time=scheduled_time,
             headers=headers, priority=priority, status=status,
-            context=context, template=template
+            context=context, template=template, backend_access=backend_access
         )
 
     else:
@@ -82,6 +83,7 @@ def create(sender, recipients=None, cc=None, bcc=None, subject='', message='',
             html_message=html_message,
             scheduled_time=scheduled_time,
             headers=headers, priority=priority, status=status,
+            backend_access=backend_access
         )
 
     if commit:
@@ -93,7 +95,8 @@ def create(sender, recipients=None, cc=None, bcc=None, subject='', message='',
 def send(recipients=None, sender=None, template=None, context=None, subject='',
          message='', html_message='', scheduled_time=None, headers=None,
          priority=None, attachments=None, render_on_delivery=False,
-         log_level=None, commit=True, cc=None, bcc=None):
+         log_level=None, commit=True, cc=None, bcc=None,
+         backend_access=None):
 
     try:
         recipients = parse_emails(recipients)
@@ -140,7 +143,8 @@ def send(recipients=None, sender=None, template=None, context=None, subject='',
 
     email = create(sender, recipients, cc, bcc, subject, message, html_message,
                    context, scheduled_time, headers, template, priority,
-                   render_on_delivery, commit=commit)
+                   render_on_delivery, commit=commit,
+                   backend_access=backend_access)
 
     if attachments:
         attachments = create_attachments(attachments)
@@ -214,6 +218,21 @@ def send_queued(processes=1, log_level=None):
     logger.info(message)
     return (total_sent, total_failed)
 
+def _get_connection_pool(emails):
+    connection_pool = {}
+    email_group = {}
+    for e in emails:
+        backend_access_key = e.backend_access.pk if e.backend_access else 0
+        if backend_access_key not in connection_pool:
+            email_group[backend_access_key] = []
+            if e.backend_access is None:
+                connection = get_connection(get_email_backend())
+            else:
+                connection = import_by_path(get_email_backend())(
+                    **e.backend_access.get_kwargs())
+            connection_pool[backend_access_key] = connection
+        email_group[backend_access_key].append(e)
+    return connection_pool, email_group
 
 def _send_bulk(emails, uses_multiprocessing=True, log_level=None):
     # Multiprocessing does not play well with database connection
@@ -229,27 +248,23 @@ def _send_bulk(emails, uses_multiprocessing=True, log_level=None):
     email_count = len(emails)
     logger.info('Process started, sending %s emails' % email_count)
 
-    # Try to open a connection, if we can't just pass in None as connection
-    try:
-        connection = get_connection(get_email_backend())
-        connection.open()
-    except Exception:
-        connection = None
+    connection_pool, email_group = _get_connection_pool(emails)
 
     try:
-        for email in emails:
-            status = email.dispatch(connection, log_level)
-            if status == STATUS.sent:
-                sent_count += 1
-                logger.debug('Successfully sent email #%d' % email.id)
-            else:
-                failed_count += 1
-                logger.debug('Failed to send email #%d' % email.id)
+        for connection_key, connection in connection_pool.iteritems():
+            connection.open()
+
+            for email in email_group[connection_key]:
+                status = email.dispatch(connection, log_level)
+                if status == STATUS.sent:
+                    sent_count += 1
+                    logger.debug('Successfully sent email #%d' % email.id)
+                else:
+                    failed_count += 1
+                    logger.debug('Failed to send email #%d' % email.id)
+            connection.close()
     except Exception as e:
         logger.error(e, exc_info=sys.exc_info(), extra={'status_code': 500})
-
-    if connection:
-        connection.close()
 
     logger.info('Process finished, %s emails attempted, %s sent, %s failed' %
                (email_count, sent_count, failed_count))

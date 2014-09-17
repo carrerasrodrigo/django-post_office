@@ -24,6 +24,18 @@ from .validators import validate_email_with_name, validate_template_syntax
 PRIORITY = namedtuple('PRIORITY', 'low medium high now')._make(range(4))
 STATUS = namedtuple('STATUS', 'sent failed queued')._make(range(3))
 
+class BackendAccess(models.Model):
+    name = models.CharField(max_length=250, unique=True)
+    host = models.CharField(max_length=500)
+    port = models.IntegerField()
+    username = models.CharField(max_length=250)
+    password = models.CharField(max_length=250)
+    use_tsl = models.BooleanField()
+
+    def get_kwargs(self):
+        return dict(
+            host=self.host, port=self.port, username=self.username,
+            password=self.password, use_tsl=self.use_tsl)
 
 class Email(models.Model):
     """
@@ -58,6 +70,7 @@ class Email(models.Model):
     headers = JSONField(blank=True, null=True)
     template = models.ForeignKey('post_office.EmailTemplate', blank=True, null=True)
     context = context_field_class(blank=True, null=True)
+    backend_access = models.ForeignKey(BackendAccess, blank=True, null=True)
 
     def __unicode__(self):
         return u'%s' % self.to

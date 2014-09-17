@@ -3,7 +3,7 @@ from django.forms.widgets import TextInput
 from django.utils.text import Truncator
 
 from .fields import CommaSeparatedEmailField
-from .models import Email, Log, EmailTemplate, STATUS
+from .models import Email, Log, EmailTemplate, BackendAccess, STATUS
 
 
 def get_message_preview(instance):
@@ -81,3 +81,4 @@ class EmailTemplateAdmin(admin.ModelAdmin):
 admin.site.register(Email, EmailAdmin)
 admin.site.register(Log, LogAdmin)
 admin.site.register(EmailTemplate, EmailTemplateAdmin)
+admin.site.register(BackendAccess)

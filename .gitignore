@@ -1,2 +1,7 @@
 *.pyc
 post_office_attachments
+build
+dist
+django_post_office.egg
+django_post_office.egg-info
+db.sqlite
