@@ -16,7 +16,6 @@ from ..mail import (create, get_queued,
 
 connection_counter = 0
 
-
 class ConnectionTestingBackend(mail.backends.base.BaseEmailBackend):
     '''
     An EmailBackend that increments a global counter when connection is opened
@@ -91,7 +90,8 @@ class MailTest(TestCase):
         Ensure _send_bulk() properly sends out emails.
         """
         ba = BackendAccess.objects.create(name='n', host='localhost', port=22,
-            username='u', password='p', use_tsl=True)
+            username='u', password='p', use_tsl=True, limit_min=0,
+            total_sent_last_min=0, last_time_sent=0)
 
         email = Email.objects.create(
             to=['to@example.com'], from_email='bob@example.com',
@@ -100,6 +100,43 @@ class MailTest(TestCase):
         _send_bulk([email])
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].subject, 'send bulk')
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_send_bulk_with_backend_access_limit_min(self):
+        """
+        Ensure _send_bulk() properly sends out emails.
+        """
+        ba = BackendAccess.objects.create(name='n', host='localhost', port=22,
+            username='u', password='p', use_tsl=True, limit_min=1,
+            total_sent_last_min=0,
+            last_time_sent=BackendAccess.get_relative_time())
+
+        def create_emails():
+            emails = []
+            for i in range(5):
+                emails.append(Email.objects.create(
+                    to=['to@example.com'], from_email='bob@example.com',
+                    subject='send bulk', message='Message', status=STATUS.queued,
+                    backend_access=ba))
+            return emails
+
+        emails = create_emails()
+        _send_bulk(emails)
+        ba = BackendAccess.objects.get(id=ba.id)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(ba.total_sent_last_min, 1)
+        self.assertEqual(ba.last_time_sent, BackendAccess.get_relative_time())
+
+        emails = create_emails()
+        _send_bulk(emails)
+        self.assertEqual(len(mail.outbox), 1)
+
+        emails = create_emails()
+        ba.last_time_sent -= 1
+        ba.save()
+        _send_bulk(emails)
+        self.assertEqual(len(mail.outbox), 2)
+
 
     @override_settings(EMAIL_BACKEND='post_office.tests.mail.ConnectionTestingBackend')
     def test_send_bulk_reuses_open_connection(self):

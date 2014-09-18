@@ -1,3 +1,4 @@
+import time
 import sys
 from uuid import uuid4
 
@@ -20,7 +21,6 @@ from .compat import text_type
 from .settings import get_email_backend, context_field_class, get_log_level
 from .validators import validate_email_with_name, validate_template_syntax
 
-
 PRIORITY = namedtuple('PRIORITY', 'low medium high now')._make(range(4))
 STATUS = namedtuple('STATUS', 'sent failed queued')._make(range(3))
 
@@ -31,6 +31,29 @@ class BackendAccess(models.Model):
     username = models.CharField(max_length=250)
     password = models.CharField(max_length=250)
     use_tsl = models.BooleanField()
+
+    limit_min = models.IntegerField(default=0)
+    total_sent_last_min = models.IntegerField(default=0)
+    last_time_sent = models.IntegerField()
+
+    @classmethod
+    def get_relative_time(self):
+        return int(time.time() / 60)
+
+    def get_emails_allowed(self):
+        if self.limit_min == 0:
+            return 99999999
+        elif self.last_time_sent < self.get_relative_time():
+            return self.limit_min
+        return max(self.limit_min - self.total_sent_last_min, 0)
+
+    def set_batch_sent(self, total_emails):
+        if self.last_time_sent < self.get_relative_time():
+            self.total_sent_last_min = total_emails
+            self.last_time_sent = self.get_relative_time()
+        else:
+            self.total_sent_last_min += total_emails
+        self.save()
 
     def get_kwargs(self):
         return dict(

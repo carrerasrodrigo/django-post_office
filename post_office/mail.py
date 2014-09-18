@@ -177,7 +177,8 @@ def get_queued():
     return Email.objects.filter(status=STATUS.queued) \
         .select_related('template') \
         .filter(Q(scheduled_time__lte=now()) | Q(scheduled_time=None)) \
-        .order_by('-priority').prefetch_related('attachments')[:get_batch_size()]
+        .order_by('-priority') \
+        .prefetch_related('attachments')[:get_batch_size()]
 
 
 def send_queued(processes=1, log_level=None):
@@ -230,7 +231,7 @@ def _get_connection_pool(emails):
             else:
                 connection = import_by_path(get_email_backend())(
                     **e.backend_access.get_kwargs())
-            connection_pool[backend_access_key] = connection
+            connection_pool[backend_access_key] = (connection, e.backend_access)
         email_group[backend_access_key].append(e)
     return connection_pool, email_group
 
@@ -251,17 +252,31 @@ def _send_bulk(emails, uses_multiprocessing=True, log_level=None):
     connection_pool, email_group = _get_connection_pool(emails)
 
     try:
-        for connection_key, connection in connection_pool.iteritems():
+        for connection_key, connection_touple in connection_pool.iteritems():
+            connection, backend_access = connection_touple
+            sent_connection_count, failed_connection_count = 0, 0
             connection.open()
 
-            for email in email_group[connection_key]:
+            if backend_access is None:
+                emails_allowed = email_count
+            else:
+                emails_allowed = backend_access.get_emails_allowed()
+
+            for email in email_group[connection_key][:emails_allowed]:
                 status = email.dispatch(connection, log_level)
                 if status == STATUS.sent:
                     sent_count += 1
+                    sent_connection_count += 1
                     logger.debug('Successfully sent email #%d' % email.id)
                 else:
                     failed_count += 1
+                    failed_connection_count += 1
                     logger.debug('Failed to send email #%d' % email.id)
+
+            if backend_access is not None:
+                backend_access.set_batch_sent(
+                    sent_connection_count+failed_connection_count)
+
             connection.close()
     except Exception as e:
         logger.error(e, exc_info=sys.exc_info(), extra={'status_code': 500})

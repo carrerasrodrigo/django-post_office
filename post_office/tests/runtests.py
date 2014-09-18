@@ -7,7 +7,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 
 from django.conf import settings
 
-
 settings.configure(
     DATABASES = {
         'default': {
