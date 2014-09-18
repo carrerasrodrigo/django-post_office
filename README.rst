@@ -11,7 +11,7 @@ Some awesome features are:
 * Built in scheduling support
 * Works well with task queues like `RQ <http://python-rq.org>`_ or `Celery <http://www.celeryproject.org>`_
 * Uses multiprocessing to send a large number of emails in parallel
-
+* Allows to set a limit in the number of emails sent every minute. 
 
 Dependencies
 ============
@@ -140,6 +140,10 @@ arguments:
 |                   |          | This way content is never stored in the DB.     |
 |                   |          | May result in significat space savings.         |
 +-------------------+----------+-------------------------------------------------+
+| access_backend    | No       | Allows to use different email backends.         |
+|                   |          | For example it's possible to send emails with   |
+|                   |          | Amazon SES and sendgrid at the same time.       |
++-------------------+----------+-------------------------------------------------+
 
 
 Here are a few examples.
@@ -243,6 +247,14 @@ For example if you want to use `django-ses <https://github.com/hmarr/django-ses>
     POST_OFFICE = {
         'EMAIL_BACKEND': 'django_ses.SESBackend'
     }
+
+
+Backend user + password + limits
+---------------------
+
+Using an instance of ``post_office.models.AccessBackend`` it's possible to set differents 
+email providers and set a limitation in the number of emails that we want to send every
+minute. 
 
 
 Management Commands
