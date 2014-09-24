@@ -219,6 +219,7 @@ def send_queued(processes=1, log_level=None):
     logger.info(message)
     return (total_sent, total_failed)
 
+
 def _get_connection_pool(emails):
     connection_pool = {}
     email_group = {}
@@ -226,14 +227,21 @@ def _get_connection_pool(emails):
         backend_access_key = e.backend_access.pk if e.backend_access else 0
         if backend_access_key not in connection_pool:
             email_group[backend_access_key] = []
+
             if e.backend_access is None:
                 connection = get_connection(get_email_backend())
             else:
-                connection = import_by_path(get_email_backend())(
+                if e.backend_access.backend_class:
+                    bk = e.backend_access.backend_class
+                else:
+                    bk = get_email_backend()
+                connection = import_by_path(bk)(
                     **e.backend_access.get_kwargs())
+
             connection_pool[backend_access_key] = (connection, e.backend_access)
         email_group[backend_access_key].append(e)
     return connection_pool, email_group
+
 
 def _send_bulk(emails, uses_multiprocessing=True, log_level=None):
     # Multiprocessing does not play well with database connection

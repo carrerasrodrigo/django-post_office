@@ -24,6 +24,7 @@ from .validators import validate_email_with_name, validate_template_syntax
 PRIORITY = namedtuple('PRIORITY', 'low medium high now')._make(range(4))
 STATUS = namedtuple('STATUS', 'sent failed queued')._make(range(3))
 
+
 class BackendAccess(models.Model):
     name = models.CharField(max_length=250, unique=True)
     host = models.CharField(max_length=500)
@@ -31,10 +32,14 @@ class BackendAccess(models.Model):
     username = models.CharField(max_length=250)
     password = models.CharField(max_length=250)
     use_tsl = models.BooleanField()
+    backend_class = models.CharField(max_length=500, null=True, blank=True)
 
     limit_min = models.IntegerField(default=0)
     total_sent_last_min = models.IntegerField(default=0)
-    last_time_sent = models.IntegerField()
+    last_time_sent = models.IntegerField(default=0)
+
+    def __unicode__(self):
+        return self.name
 
     @classmethod
     def get_relative_time(self):
@@ -59,6 +64,7 @@ class BackendAccess(models.Model):
         return dict(
             host=self.host, port=self.port, username=self.username,
             password=self.password, use_tsl=self.use_tsl)
+
 
 class Email(models.Model):
     """
