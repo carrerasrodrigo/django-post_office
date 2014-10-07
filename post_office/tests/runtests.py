@@ -4,7 +4,7 @@ import sys
 # fix sys path so we don't need to setup PYTHONPATH
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 
-
+import django
 from django.conf import settings
 
 settings.configure(
@@ -35,6 +35,11 @@ settings.configure(
     DEFAULT_FROM_EMAIL='default@example.com',
     ROOT_URLCONF = 'post_office.test_urls',
     TEST_RUNNER = 'django.test.simple.DjangoTestSuiteRunner',
+    MIDDLEWARE_CLASSES = (
+        'django.contrib.sessions.middleware.SessionMiddleware',
+        'django.contrib.auth.middleware.AuthenticationMiddleware',
+        'django.contrib.messages.middleware.MessageMiddleware',
+    )
 )
 
 from django.test.utils import get_runner
@@ -50,6 +55,7 @@ def usage():
 
 
 def main():
+    django.setup()
     TestRunner = get_runner(settings)
 
     test_runner = TestRunner()
