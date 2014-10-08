@@ -31,7 +31,7 @@ class BackendAccess(models.Model):
     port = models.IntegerField()
     username = models.CharField(max_length=250)
     password = models.CharField(max_length=250)
-    use_tsl = models.BooleanField()
+    use_tsl = models.BooleanField(default=False)
     backend_class = models.CharField(max_length=500, null=True, blank=True)
 
     limit_min = models.IntegerField(default=0)
