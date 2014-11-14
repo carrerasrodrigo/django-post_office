@@ -1,10 +1,10 @@
 import time
 import sys
+
 from uuid import uuid4
-
 from collections import namedtuple
-
-from django.core.mail import EmailMessage, EmailMultiAlternatives, get_connection
+from django.core.mail import EmailMessage, EmailMultiAlternatives, \
+    get_connection
 from django.db import models
 from post_office.fields import CommaSeparatedEmailField
 
@@ -14,7 +14,7 @@ except ImportError:
     from django.utils.encoding import smart_unicode as smart_text
 
 from django.template import Context, Template
-
+from smtplib import SMTPServerDisconnected
 from jsonfield import JSONField
 from post_office import cache
 from .compat import text_type
@@ -153,7 +153,14 @@ class Email(models.Model):
                 connection.open()
                 connection_opened = True
 
-            self.email_message(connection=connection).send()
+            try:
+                self.email_message(connection=connection).send()
+            except SMTPServerDisconnected:
+                # the connection was reseted by the server, or something
+                # happend. Try to open the connection again
+                connection.open()
+                self.email_message(connection=connection).send()
+
             status = STATUS.sent
             message = ''
             exception_type = ''
