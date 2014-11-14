@@ -38,8 +38,7 @@ INSTALLED_APPS = (
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
-    'post_office',
-    'south'
+    'post_office'
 )
 
 SECRET_KEY = 'a'
@@ -49,3 +48,9 @@ ROOT_URLCONF = 'post_office.test_urls'
 DEFAULT_FROM_EMAIL = 'webmaster@example.com'
 
 TEST_RUNNER = 'django.test.simple.DjangoTestSuiteRunner'
+
+MIDDLEWARE_CLASSES = (
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware'
+    )

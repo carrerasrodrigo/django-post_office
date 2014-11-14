@@ -5,3 +5,5 @@ dist
 django_post_office.egg
 django_post_office.egg-info
 db.sqlite
+
+management.py

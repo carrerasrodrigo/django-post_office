@@ -235,20 +235,21 @@ class EmailTemplate(models.Model):
         return template
 
 
+def get_upload_path(instance, filename):
+    """Overriding to store the original filename"""
+    if not instance.name:
+        instance.name = filename  # set original filename
+
+    filename = '{name}.{ext}'.format(name=uuid4().hex,
+                                     ext=filename.split('.')[-1])
+
+    return 'post_office_attachments/' + filename
+
+
 class Attachment(models.Model):
     """
     A model describing an email attachment.
     """
-    def get_upload_path(self, filename):
-        """Overriding to store the original filename"""
-        if not self.name:
-            self.name = filename  # set original filename
-
-        filename = '{name}.{ext}'.format(name=uuid4().hex,
-                                         ext=filename.split('.')[-1])
-
-        return 'post_office_attachments/' + filename
-
     file = models.FileField(upload_to=get_upload_path)
     name = models.CharField(max_length=255, help_text='The original filename')
     emails = models.ManyToManyField(Email, related_name='attachments')
