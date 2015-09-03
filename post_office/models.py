@@ -22,7 +22,7 @@ from .settings import get_email_backend, context_field_class, get_log_level
 from .validators import validate_email_with_name, validate_template_syntax
 
 PRIORITY = namedtuple('PRIORITY', 'low medium high now')._make(range(4))
-STATUS = namedtuple('STATUS', 'sent failed queued')._make(range(3))
+STATUS = namedtuple('STATUS', 'sent failed queued received')._make(range(4))
 
 
 class BackendAccess(models.Model):
@@ -37,6 +37,9 @@ class BackendAccess(models.Model):
     limit_min = models.IntegerField(default=0)
     total_sent_last_min = models.IntegerField(default=0)
     last_time_sent = models.IntegerField(default=0)
+
+    class Meta():
+        app_label = 'post_office'
 
     def __unicode__(self):
         return self.name
@@ -74,7 +77,7 @@ class Email(models.Model):
     PRIORITY_CHOICES = [(PRIORITY.low, 'low'), (PRIORITY.medium, 'medium'),
                         (PRIORITY.high, 'high'), (PRIORITY.now, 'now')]
     STATUS_CHOICES = [(STATUS.sent, 'sent'), (STATUS.failed, 'failed'),
-                      (STATUS.queued, 'queued')]
+                      (STATUS.queued, 'queued'), (STATUS.received, 'received')]
 
     from_email = models.CharField(max_length=254,
                                   validators=[validate_email_with_name])
@@ -100,6 +103,9 @@ class Email(models.Model):
     template = models.ForeignKey('post_office.EmailTemplate', blank=True, null=True)
     context = context_field_class(blank=True, null=True)
     backend_access = models.ForeignKey(BackendAccess, blank=True, null=True)
+
+    class Meta():
+        app_label = 'post_office'
 
     def __unicode__(self):
         return u'%s' % self.to
@@ -206,6 +212,9 @@ class Log(models.Model):
     exception_type = models.CharField(max_length=255, blank=True)
     message = models.TextField()
 
+    class Meta():
+        app_label = 'post_office'
+
     def __unicode__(self):
         return text_type(self.date)
 
@@ -225,6 +234,9 @@ class EmailTemplate(models.Model):
                                     validators=[validate_template_syntax])
     created = models.DateTimeField(auto_now_add=True)
     last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta():
+        app_label = 'post_office'
 
     def __unicode__(self):
         return self.name
@@ -253,3 +265,6 @@ class Attachment(models.Model):
     file = models.FileField(upload_to=get_upload_path)
     name = models.CharField(max_length=255, help_text='The original filename')
     emails = models.ManyToManyField(Email, related_name='attachments')
+
+    class Meta():
+        app_label = 'post_office'
